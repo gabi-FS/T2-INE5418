@@ -1,8 +1,6 @@
 import socket
 import threading
 
-# ideias iniciais, não sei se faz sentido
-
 
 class NodeInfo:
     """
@@ -57,15 +55,18 @@ class Device:
 
     _cfg: NodeInfo
     _socket: socket.socket  # tipo socket
-    _neighbors: list[socket.socket]
+    _neighbors: dict[int, socket.socket]
 
     # neighbours: list of identifiers of other Nodes connected to this
-    def __init__(self, cfg) -> None:
+    def __init__(self, cfg: NodeInfo) -> None:
         self._cfg = cfg
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._neighbours = []
+        self._neighbors = {}
 
     def start_server(self):
+        """
+        Starts the server and listens for incoming connections.
+        """
         self._socket.bind((self._cfg.host, self._cfg.port))
         self._socket.listen(10)
         print(f"Node {self._cfg.id} listening on {self._cfg.host}:{self._cfg.port}")
@@ -81,6 +82,15 @@ class Device:
             client_thread.start()
 
     def handle_client(self, client_socket):
+        """
+        Handles the client connection and receives data from the client.
+
+        Args:
+            client_socket (socket): The socket object representing the client connection.
+
+        Returns:
+            None
+        """
         try:
             while True:
                 data = client_socket.recv(1024)
@@ -93,16 +103,36 @@ class Device:
             client_socket.close()
             print(f"Node {self._cfg.id} connection closed.")
 
-    def connect_to_node(self, neighbor_host, neighbor_port):
-        neighbor_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        neighbor_socket.connect((neighbor_host, neighbor_port))
-        print(
-            f"Node {self._cfg.id} connected to Node at {neighbor_host}:{neighbor_port}"
-        )
-        self._neighbors.append(neighbor_socket)
+    def connect_to_node(self, neighbor_info: node.NodeInfo):
+        """
+        Connects the current node to a neighbor node.
 
-    def send_message(self, neighbor_socket, message):
+        Args:
+            neighbor_info (node.NodeInfo): Information about the neighbor node, including host and port.
+
+        Returns:
+            None
+        """
+        neighbor_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        neighbor_socket.connect((neighbor_info.host, neighbor_info.port))
+        print(
+            f"Node {self._cfg.id} connected to Node at {neighbor_info.host}:{neighbor_info.host}"
+        )
+        self._neighbors[neighbor_info.id] = neighbor_socket
+
+    def send_message(self, neighbor_id, message):
+        """
+        Sends a message to a neighbor socket.
+
+        Args:
+            neighbor_id (int): The ID of the neighbor node.
+            message (str): The message to be sent.
+
+        Returns:
+            None
+        """
         try:
+            neighbor_socket = self._neighbors[neighbor_id]
             neighbor_socket.sendall(message.encode("utf-8"))
             print(f"Node {self._cfg.id} sent message: {message}")
         except Exception as e:
