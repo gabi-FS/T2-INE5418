@@ -1,50 +1,10 @@
+"""
+Device module.
+"""
+
 import socket
 import threading
-
-
-class NodeInfo:
-    """
-    Defines host and port for communication.
-    """
-
-    _host: str
-    _port: int
-    _id: int
-
-    def __init__(self, host: str, port: int, id: int) -> None:
-        self._host = host
-        self._port = port
-        self._id = id
-
-    @property
-    def host(self) -> str:
-        """
-        Get the host name.
-
-        Returns:
-        str: The host name.
-        """
-        return self._host
-
-    @property
-    def port(self) -> int:
-        """
-        Get the port number.
-
-        Returns:
-        int: The port number.
-        """
-        return self._port
-
-    @property
-    def id(self) -> int:
-        """
-        Get the id number.
-
-        Returns:
-        int: The id number.
-        """
-        return self._id
+import node
 
 
 class Device:
@@ -53,15 +13,17 @@ class Device:
     Defines a device with a socket for communication.
     """
 
-    _cfg: NodeInfo
+    _cfg: node.NodeInfo
     _socket: socket.socket  # tipo socket
     _neighbors: dict[int, socket.socket]
+    _timeout: float
 
     # neighbours: list of identifiers of other Nodes connected to this
-    def __init__(self, cfg: NodeInfo) -> None:
+    def __init__(self, cfg: node.NodeInfo, timeout: float) -> None:
         self._cfg = cfg
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._neighbors = {}
+        self._timeout = timeout
 
     def start_server(self):
         """
@@ -108,7 +70,7 @@ class Device:
         Connects the current node to a neighbor node.
 
         Args:
-            neighbor_info (node.NodeInfo): Information about the neighbor node, including host and port.
+            neighbor_info (node.node.NodeInfo): Information about the neighbor node, including host and port.
 
         Returns:
             None
@@ -120,7 +82,9 @@ class Device:
         )
         self._neighbors[neighbor_info.id] = neighbor_socket
 
-    def send_message(self, neighbor_id, message):
+    def send_message(
+        self, neighbor_id, message, neighbor_info=node.NodeInfo("a", 0, 0)
+    ):
         """
         Sends a message to a neighbor socket.
 
@@ -131,9 +95,65 @@ class Device:
         Returns:
             None
         """
+        if neighbor_id not in self._neighbors:
+            self.connect_to_node(neighbor_info)
         try:
             neighbor_socket = self._neighbors[neighbor_id]
             neighbor_socket.sendall(message.encode("utf-8"))
             print(f"Node {self._cfg.id} sent message: {message}")
         except Exception as e:
             print(f"Node {self._cfg.id} error: {e}")
+
+    def receive_message(self, neighbor_id):
+        """
+        Receives a message from a neighbor socket.
+
+        Args:
+            neighbor_socket (socket): The socket object of the neighbor.
+
+        Returns:
+            str: The received message.
+        """
+        # Define the buffer size
+        buffer_size = 1024
+
+        neighbor_socket = self._neighbors[neighbor_id]
+
+        # Set a timeout
+        neighbor_socket.settimeout(self._timeout)
+
+        try:
+            # Receive the data
+            data = neighbor_socket.recv(buffer_size)
+
+            # Decode the data
+            message = data.decode()
+
+            print(f"Node {self._cfg.id} received message: {message}")
+
+            return message
+        except socket.timeout:
+            print(
+                f"Node {self._cfg.id} did not receive a message within the timeout period."
+            )
+            return None
+
+    @property
+    def cfg(self) -> node.NodeInfo:
+        """
+        Get the node configuration.
+
+        Returns:
+            node.NodeInfo: The node configuration.
+        """
+        return self._cfg
+
+    @property
+    def neighbors(self) -> dict[int, socket.socket]:
+        """
+        Get the node neighbors.
+
+        Returns:
+            dict[int, socket.socket]: The node neighbors.
+        """
+        return self._neighbors

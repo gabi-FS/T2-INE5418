@@ -2,20 +2,52 @@
 Node module.
 """
 
-import device
 import threading
-from enum import Enum
 
 
-class MessageType(Enum):
+class NodeInfo:
     """
-    Defines the message types.
+    Defines host and port for communication.
     """
 
-    PARENT_REQUEST = "parent_request"
-    PARENT_RESPONSE = "parent_response"
-    LEADER_ANNOUNCEMENT = "leader_announcement"
-    LEADER_ANNOUNCEMENT_ACK = "leader_announcement_ack"
+    _host: str
+    _port: int
+    _id: int
+
+    def __init__(self, host: str, port: int, id: int) -> None:
+        self._host = host
+        self._port = port
+        self._id = id
+
+    @property
+    def host(self) -> str:
+        """
+        Get the host name.
+
+        Returns:
+        str: The host name.
+        """
+        return self._host
+
+    @property
+    def port(self) -> int:
+        """
+        Get the port number.
+
+        Returns:
+        int: The port number.
+        """
+        return self._port
+
+    @property
+    def id(self) -> int:
+        """
+        Get the id number.
+
+        Returns:
+        int: The id number.
+        """
+        return self._id
 
 
 class Node:
@@ -25,21 +57,22 @@ class Node:
     """
 
     _id: int
-    _neighbours: list[device.NodeInfo]
+    _neighbours: list[NodeInfo]
     _done: bool
     _is_leaf: bool
     _leader_id: int
-    _device: device.Device
     _able_to_request_parent: bool
+    _children: list[int]
 
     # neighbours: list of identifiers of other Nodes connected to this
-    def __init__(self, cfg: device.NodeInfo) -> None:
-        self._id = cfg.id
-        self._neighbours = []
+    def __init__(self, id: int, neighbors_info: list[NodeInfo]) -> None:
+        self._id = id
+        self._neighbours = neighbors_info
         self._done = False
-        self._is_leaf = False
+        self._is_leaf = len(neighbors_info) == 1
         self._leader_id = -1
-        self._device = device.Device(cfg)
+        self._able_to_request_parent = False
+        self._children = []
 
     def is_leader(self):
         """
@@ -50,7 +83,8 @@ class Node:
         """
         return self._leader_id == self._id
 
-    def get_leader_id(self):
+    @property
+    def leader_id(self):
         """
         Get the leader id.
 
@@ -59,39 +93,103 @@ class Node:
         """
         return self._leader_id
 
-    def init_node(self, neighbors_info: list[device.NodeInfo]):
+    @property
+    def is_leaf(self):
         """
-        Initializes the node by starting the server and connecting to neighbors.
+        Check if the current node is a leaf.
+
+        Returns:
+            bool: True if the current node is a leaf, False otherwise.
+        """
+        return self._is_leaf
+
+    @property
+    def able_to_request_parent(self):
+        """
+        Check if the current node is able to request parent.
+
+        Returns:
+            bool: True if the current node is able to request parent, False otherwise.
+        """
+        return self._able_to_request_parent
+
+    @property
+    def children(self):
+        """
+        Get the children list.
+
+        Returns:
+            list[int]: The children list.
+        """
+        return self._children
+
+    @property
+    def neighbours(self):
+        """
+        Get the neighbours list.
+
+        Returns:
+            list[int]: The neighbours list.
+        """
+        return self._neighbours
+
+    @property
+    def id(self):
+        """
+        Get the id.
+
+        Returns:
+            int: The id.
+        """
+        return self._id
+
+    def add_child(self, child_id: int):
+        """
+        Add a child to the children list.
+
+        Args:
+            child_id (int): The child id.
 
         Returns:
             None
         """
-        server_thread = threading.Thread(target=self._device.start_server)
-        server_thread.start()
+        self._children.append(child_id)
 
-        for neighbor in neighbors_info:
-            self._device.connect_to_node(neighbor)
-
-        self._is_leaf = len(neighbors_info) == 1
-
-    def leader_election(self):
+    def set_leader(self, leader_id: int):
         """
-        Performs the leader election algorithm.
+        Set the leader id.
+
+        Args:
+            leader_id (int): The leader id.
 
         Returns:
             None
         """
-        if self._is_leaf:
-            self.send_parent_request(self._neighbours[0].id)
-        else:
-            if self._able_to_request_parent:
-                self.send_parent_request(self._neighbours[0].id)
+        self._leader_id = leader_id
 
-    def send_parent_request(self, parent_id: int):
+    def set_able_to_request_parent(self, able_to_request_parent: bool):
         """
-        Sends a request.
+        Set the able_to_request_parent flag.
+
+        Args:
+            able_to_request_parent (bool): The able_to_request_parent flag.
 
         Returns:
             None
         """
-        self._device.send_message(parent_id, MessageType.PARENT_REQUEST)
+        self._able_to_request_parent = able_to_request_parent
+
+    def get_neighbor_by_id(self, neighbor_id: int) -> NodeInfo:
+        """
+        Get a neighbor by its id.
+
+        Args:
+            neighbor_id (int): The neighbor id.
+
+        Returns:
+            NodeInfo: The neighbor.
+        """
+        for neighbor in self._neighbours:
+            if neighbor.id == neighbor_id:
+                return neighbor
+        return None
