@@ -1,0 +1,64 @@
+{
+    "A": {
+        "id": 1,
+        "server": {
+            "port": 8000,
+            "host": "localhost"
+        },
+        "client": {
+            "port": 8001,
+            "host": "localhost"
+        },
+        "neighbours": [
+            {
+                "id": 3,
+                "port": 8004,
+                "host": "localhost"
+            }
+        ]
+    },
+
+    "B": {
+        "id": 2,
+        "server": {
+            "port": 8002,
+            "host": "localhost"
+        },
+        "client": {
+            "port": 8003,
+            "host": "localhost"
+        },
+        "neighbours": [
+            {
+                "id": 3,
+                "port": 8004,
+                "host": "localhost"
+            }
+        ]
+
+    },
+    "C":
+    {
+        "id": 3,
+        "server": {
+            "port": 8004,
+            "host": "localhost"
+        },
+        "client": {
+            "port": 8005,
+            "host": "localhost"
+        },
+        "neighbours": [
+            {
+                "id": 1,
+                "port": 8000,
+                "host": "localhost"
+            },
+            {
+                "id": 2,
+                "port": 8002,
+                "host": "localhost"
+            }
+        ]
+    }
+}
