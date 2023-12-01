@@ -4,7 +4,7 @@ Device module.
 
 import socket
 import threading
-import node
+import lib.node as node
 
 
 class Device:
@@ -13,59 +13,56 @@ class Device:
     Defines a device with a socket for communication.
     """
 
-    _cfg: node.NodeInfo
+    _server_cfg: node.NodeInfo
+    _client_cfg: node.NodeInfo
     _socket: socket.socket  # tipo socket
     _neighbors: dict[int, socket.socket]
     _timeout: float
 
     # neighbours: list of identifiers of other Nodes connected to this
-    def __init__(self, cfg: node.NodeInfo, timeout: float) -> None:
-        self._cfg = cfg
+    def __init__(
+        self,
+        server_cfg: node.NodeInfo,
+        client_cfg: node.NodeInfo,
+        timeout: float,
+    ) -> None:
+        self._server_cfg = server_cfg
+        self._client_cfg = client_cfg
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._neighbors = {}
         self._timeout = timeout
+        self._id = 0
 
-    def start_server(self):
+    def start_device(self, id: int, handler):
         """
-        Starts the server and listens for incoming connections.
-        """
-        self._socket.bind((self._cfg.host, self._cfg.port))
-        self._socket.listen(10)
-        print(f"Node {self._cfg.id} listening on {self._cfg.host}:{self._cfg.port}")
-
-        while True:
-            client_socket, client_address = self._socket.accept()
-            print(f"Node {self._cfg.id} accepted connection from {client_address}")
-
-            # Handle client in a separate thread
-            client_thread = threading.Thread(
-                target=self.handle_client, args=(client_socket,)
-            )
-            client_thread.start()
-
-    def handle_client(self, client_socket):
-        """
-        Handles the client connection and receives data from the client.
-
-        Args:
-            client_socket (socket): The socket object representing the client connection.
+        Initializes the node by starting the server.
 
         Returns:
             None
         """
-        try:
-            while True:
-                data = client_socket.recv(1024)
-                if not data:
-                    break
-                print(f"Node {self._cfg.id} received data: {data.decode('utf-8')}")
-        except Exception as e:
-            print(f"Node {self._cfg.id} error: {e}")
-        finally:
-            client_socket.close()
-            print(f"Node {self._cfg.id} connection closed.")
+        self._id = id
+        server_thread = threading.Thread(target=self.start_server, args=(handler,))
+        server_thread.start()
 
-    def connect_to_node(self, neighbor_info: node.NodeInfo):
+    def start_server(self, handler):
+        """
+        Starts the server and listens for incoming connections.
+        """
+        self._socket.bind((self._server_cfg.host, self._server_cfg.port))
+        self._socket.listen(10)
+        print(
+            f"Node {self._id} listening on {self._server_cfg.host}:{self._server_cfg.port}"
+        )
+
+        while True:
+            client_socket, client_address = self._socket.accept()
+            print(f"Node {self._id} accepted connection from {client_address}")
+            handler(client_socket)
+            # Handle client in a separate thread
+            # client_thread = threading.Thread(target=handler, args=(client_socket,))
+            # client_thread.start()
+
+    def connect_to_node(self, neighbor_info: node.NodeInfo, neighbor_id: int):
         """
         Connects the current node to a neighbor node.
 
@@ -78,13 +75,11 @@ class Device:
         neighbor_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         neighbor_socket.connect((neighbor_info.host, neighbor_info.port))
         print(
-            f"Node {self._cfg.id} connected to Node at {neighbor_info.host}:{neighbor_info.host}"
+            f"Node {self._id} connected to Node {neighbor_id} at {neighbor_info.host}:{neighbor_info.port}"
         )
-        self._neighbors[neighbor_info.id] = neighbor_socket
+        self._neighbors[neighbor_id] = neighbor_socket
 
-    def send_message(
-        self, neighbor_id, message, neighbor_info=node.NodeInfo("a", 0, 0)
-    ):
+    def send_message_to_server(self, neighbor_id, message, neighbor_info):
         """
         Sends a message to a neighbor socket.
 
@@ -96,13 +91,30 @@ class Device:
             None
         """
         if neighbor_id not in self._neighbors:
-            self.connect_to_node(neighbor_info)
+            self.connect_to_node(neighbor_info, neighbor_id)
         try:
             neighbor_socket = self._neighbors[neighbor_id]
             neighbor_socket.sendall(message.encode("utf-8"))
-            print(f"Node {self._cfg.id} sent message: {message}")
+            print(f"Node {self._id} sent message to {neighbor_id}: {message}")
         except Exception as e:
-            print(f"Node {self._cfg.id} error: {e}")
+            print(f"Node {self._id} error: {e}")
+
+    def send_message_to_client(self, neighbor_socket, message):
+        """
+        Sends a message to a neighbor client socket.
+
+        Args:
+            neighbor_socket (socket): The socket object of the neighbor.
+            message (str): The message to be sent.
+
+        Returns:
+            None
+        """
+        try:
+            neighbor_socket.sendall(message.encode("utf-8"))
+            print(f"Node {self._id} sent message: {message}")
+        except Exception as e:
+            print(f"Node {self._id} error: {e}")
 
     def receive_message(self, neighbor_id):
         """
@@ -127,14 +139,14 @@ class Device:
             data = neighbor_socket.recv(buffer_size)
 
             # Decode the data
-            message = data.decode()
+            message = data.decode("utf-8")
 
-            print(f"Node {self._cfg.id} received message: {message}")
+            print(f"Node {self._id} received message: {message}")
 
             return message
         except socket.timeout:
             print(
-                f"Node {self._cfg.id} did not receive a message within the timeout period."
+                f"Node {self._id} did not receive a message within the timeout period."
             )
             return None
 
@@ -146,7 +158,7 @@ class Device:
         Returns:
             node.NodeInfo: The node configuration.
         """
-        return self._cfg
+        return self._server_cfg
 
     @property
     def neighbors(self) -> dict[int, socket.socket]:
@@ -157,3 +169,13 @@ class Device:
             dict[int, socket.socket]: The node neighbors.
         """
         return self._neighbors
+
+    @property
+    def id(self) -> int:
+        """
+        Get the node id.
+
+        Returns:
+            int: The node id.
+        """
+        return self._id

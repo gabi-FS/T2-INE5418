@@ -2,8 +2,6 @@
 Node module.
 """
 
-import threading
-
 
 class NodeInfo:
     """
@@ -12,12 +10,10 @@ class NodeInfo:
 
     _host: str
     _port: int
-    _id: int
 
-    def __init__(self, host: str, port: int, id: int) -> None:
+    def __init__(self, host: str, port: int) -> None:
         self._host = host
         self._port = port
-        self._id = id
 
     @property
     def host(self) -> str:
@@ -39,15 +35,15 @@ class NodeInfo:
         """
         return self._port
 
-    @property
-    def id(self) -> int:
-        """
-        Get the id number.
+    # @property
+    # def id(self) -> int:
+    #     """
+    #     Get the id number.
 
-        Returns:
-        int: The id number.
-        """
-        return self._id
+    #     Returns:
+    #     int: The id number.
+    #     """
+    #     return self._id
 
 
 class Node:
@@ -57,19 +53,20 @@ class Node:
     """
 
     _id: int
-    _neighbours: list[NodeInfo]
+    _neighbours: dict[int, NodeInfo]  # id: NodeInfo
+    _neighbours_ids: list[int]
     _done: bool
     _is_leaf: bool
     _leader_id: int
     _able_to_request_parent: bool
     _children: list[int]
 
-    # neighbours: list of identifiers of other Nodes connected to this
-    def __init__(self, id: int, neighbors_info: list[NodeInfo]) -> None:
+    def __init__(self, id: int, neighbors_info: dict[int, NodeInfo]) -> None:
         self._id = id
         self._neighbours = neighbors_info
+        self._neighbours_ids = list(neighbors_info.keys())
         self._done = False
-        self._is_leaf = len(neighbors_info) == 1
+        self._is_leaf = len(self._neighbours_ids) == 1
         self._leader_id = -1
         self._able_to_request_parent = False
         self._children = []
@@ -143,6 +140,14 @@ class Node:
         """
         return self._id
 
+    @property
+    def neighbours_ids(self):
+        return self._neighbours_ids
+
+    @property
+    def done(self):
+        return self._done
+
     def add_child(self, child_id: int):
         """
         Add a child to the children list.
@@ -179,17 +184,14 @@ class Node:
         """
         self._able_to_request_parent = able_to_request_parent
 
-    def get_neighbor_by_id(self, neighbor_id: int) -> NodeInfo:
+    def set_done(self, done: bool):
         """
-        Get a neighbor by its id.
+        Set the done flag.
 
         Args:
-            neighbor_id (int): The neighbor id.
+            done (bool): The done flag.
 
         Returns:
-            NodeInfo: The neighbor.
+            None
         """
-        for neighbor in self._neighbours:
-            if neighbor.id == neighbor_id:
-                return neighbor
-        return None
+        self._done = done
