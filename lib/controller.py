@@ -45,9 +45,8 @@ class Controller:
         Returns:
             None
         """
-        self._device.start_device(id, self.handle_client)
-
         self._node = node.Node(id, neighbors_info)
+        self._device.start_device(id, self.handle_client)
 
     def send_parent_request(self, parent_id: int):
         """
@@ -66,6 +65,7 @@ class Controller:
             info, id = message.split(" ")
             if info == MessageType.PARENT_RESPONSE.value:
                 print(f"Node {self._device.id} received parent response from {id}")
+                self._device.neighbors.pop(parent_id).close()
                 return True
             else:
                 return False
@@ -87,8 +87,8 @@ class Controller:
                     self._node.set_done(True)
 
             else:
+                neighbours_ids = self._node.neighbours_ids
                 if self._node.able_to_request_parent:
-                    neighbours_ids = self._node.neighbours_ids
                     if len(neighbours_ids) == 1:
                         # if it is not a leaf, find a neighbour that is not a
                         # child and send parent request
@@ -99,8 +99,7 @@ class Controller:
                         else:
                             # if the request was not accepted, try again after some time
                             sleep_time = random.randint(1, 3000)
-                            time.sleep(float(300 / sleep_time))
-                            # continue
+                            time.sleep(float(30 / sleep_time))
 
                 elif len(neighbours_ids) > 0:
                     # if all neighbours are children, this node is the leader
