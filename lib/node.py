@@ -67,6 +67,7 @@ class Node:
         self._neighbours_ids = list(neighbors_info.keys())
         self._done = False
         self._is_leaf = len(self._neighbours_ids) == 1
+        print(f"Node {self._id} is leaf: {self._is_leaf}")
         self._leader_id = -1
         self._able_to_request_parent = False
         self._children = []
@@ -195,3 +196,15 @@ class Node:
             None
         """
         self._done = done
+
+    def remove_neighbour(self, neighbour_id: int):
+        """
+        Remove a neighbour from the neighbours list.
+
+        Args:
+            neighbour_id (int): The neighbour id.
+
+        Returns:
+            None
+        """
+        self._neighbours_ids.remove(neighbour_id)

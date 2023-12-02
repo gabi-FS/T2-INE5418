@@ -89,24 +89,23 @@ class Controller:
             else:
                 if self._node.able_to_request_parent:
                     neighbours_ids = self._node.neighbours_ids
-                    for node_id in neighbours_ids:
-                        if node_id not in self._node.children:
-                            # if it is not a leaf, find a neighbour that is not a
-                            # child and send parent request
-                            if self.send_parent_request(node_id):
-                                self._node.set_able_to_request_parent(False)
-                                self._node.set_done(True)
-                                break
-                            else:
-                                # if the request was not accepted, try again after some time
-                                sleep_time = random.randint(1, 3000)
-                                time.sleep(float(60 / sleep_time))
-                                # continue
+                    if len(neighbours_ids) == 1:
+                        # if it is not a leaf, find a neighbour that is not a
+                        # child and send parent request
+                        if self.send_parent_request(neighbours_ids[0]):
+                            self._node.set_able_to_request_parent(False)
+                            self._node.set_done(True)
+                            break
+                        else:
+                            # if the request was not accepted, try again after some time
+                            sleep_time = random.randint(1, 3000)
+                            time.sleep(float(300 / sleep_time))
+                            # continue
 
-                    else:
-                        # if all neighbours are children, this node is the leader
-                        self._node.set_leader(self._node.id)
-                        # send message to all children
+                elif len(neighbours_ids) > 0:
+                    # if all neighbours are children, this node is the leader
+                    self._node.set_leader(self._node.id)
+                    # send message to all children
 
     def handle_parent_request(self, client_socket, client_id):
         """
@@ -125,8 +124,12 @@ class Controller:
 
         if client_id in self._node.neighbours_ids and not self._node.is_leaf:
             print("accept parent request from", client_id)
+            # add client as child and remove it from neighbours
             self._node.add_child(client_id)
-            self._node.set_able_to_request_parent(True)
+            self._node.remove_neighbour(client_id)
+
+            if len(self._node.neighbours_ids) == 1:
+                self._node.set_able_to_request_parent(True)
             self._device.send_message_to_client(
                 client_socket,
                 f"{MessageType.PARENT_RESPONSE.value} {str(self._device.id)}",
