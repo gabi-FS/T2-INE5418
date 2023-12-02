@@ -1,8 +1,9 @@
-import json
 import argparse
+import json
+import time
+
 import lib.controller as controller
 import lib.node as node
-import time
 
 parser = argparse.ArgumentParser(description="Launch a node")
 parser.add_argument("name", type=str, help="The node name")

@@ -2,11 +2,12 @@
 Controller module.
 """
 
-import lib.device as device
-import lib.node as node
 from enum import Enum
-import time
-import random
+from random import randint
+from time import sleep
+
+from .device import Device
+from .node import Node, NodeInfo
 
 
 class MessageType(Enum):
@@ -27,28 +28,28 @@ class Controller:
     Defines a node of a graph.
     """
 
-    _node: node.Node
-    _device: device.Device
+    _node: Node
+    _device: Device
 
     def __init__(
         self,
-        server_cfg: node.NodeInfo,
-        client_cfg: node.NodeInfo,
+        server_cfg: NodeInfo,
+        client_cfg: NodeInfo,
         timeout: float = 120.0,
     ):
-        self._device = device.Device(server_cfg, client_cfg, timeout)
+        self._device = Device(server_cfg, client_cfg, timeout)
 
-    def start(self, neighbors_info: dict[int, node.NodeInfo], id: int):
+    def start(self, neighbors_info: dict[int, NodeInfo], id: int):
         """
         Initializes the node by starting the server.
 
         Returns:
             None
         """
-        self._node = node.Node(id, neighbors_info)
+        self._node = Node(id, neighbors_info)
         self._device.start_device(id, self.handle_client)
 
-    def send_parent_request(self, parent_id: int):
+    def send_parent_request(self, parent_id: int) -> bool:
         """
         Sends a request.
 
@@ -72,12 +73,9 @@ class Controller:
         else:
             return False
 
-    def leader_election(self):
+    def leader_election(self) -> None:
         """
         Performs the leader election algorithm.
-
-        Returns:
-            None
         """
         while not self._node.done:
             if self._node.is_leaf:
@@ -98,24 +96,21 @@ class Controller:
                             break
                         else:
                             # if the request was not accepted, try again after some time
-                            sleep_time = random.randint(1, 3000)
-                            time.sleep(float(30 / sleep_time))
+                            sleep_time = randint(1, 3000)
+                            sleep(float(30 / sleep_time))
 
                 elif len(neighbours_ids) > 0:
                     # if all neighbours are children, this node is the leader
                     self._node.set_leader(self._node.id)
                     # send message to all children
 
-    def handle_parent_request(self, client_socket, client_id):
+    def handle_parent_request(self, client_socket, client_id) -> None:
         """
         Handles the request received from a client.
 
         Args:
             client_socket (socket.socket): The socket object representing the client connection.
             client_id (int): The ID of the client.
-
-        Returns:
-            None
         """
 
         print(self._node.neighbours_ids)
@@ -140,15 +135,12 @@ class Controller:
                 f"{MessageType.ERROR.value} {str(self._device.id)}",
             )
 
-    def handle_client(self, client_socket):
+    def handle_client(self, client_socket) -> None:
         """
         Handles the client connection and receives data from the client.
 
         Args:
             client_socket (socket): The socket object representing the client connection.
-
-        Returns:
-            None
         """
         try:
             while True:

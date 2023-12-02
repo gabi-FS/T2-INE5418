@@ -35,16 +35,6 @@ class NodeInfo:
         """
         return self._port
 
-    # @property
-    # def id(self) -> int:
-    #     """
-    #     Get the id number.
-
-    #     Returns:
-    #     int: The id number.
-    #     """
-    #     return self._id
-
 
 class Node:
 
@@ -72,7 +62,7 @@ class Node:
         self._able_to_request_parent = False
         self._children = []
 
-    def is_leader(self):
+    def is_leader(self) -> bool:
         """
         Check if the current node is the leader.
 
@@ -82,7 +72,7 @@ class Node:
         return self._leader_id == self._id
 
     @property
-    def leader_id(self):
+    def leader_id(self) -> int:
         """
         Get the leader id.
 
@@ -92,7 +82,7 @@ class Node:
         return self._leader_id
 
     @property
-    def is_leaf(self):
+    def is_leaf(self) -> bool:
         """
         Check if the current node is a leaf.
 
@@ -102,7 +92,7 @@ class Node:
         return self._is_leaf
 
     @property
-    def able_to_request_parent(self):
+    def able_to_request_parent(self) -> bool:
         """
         Check if the current node is able to request parent.
 
@@ -112,7 +102,7 @@ class Node:
         return self._able_to_request_parent
 
     @property
-    def children(self):
+    def children(self) -> list[int]:
         """
         Get the children list.
 
@@ -122,7 +112,7 @@ class Node:
         return self._children
 
     @property
-    def neighbours(self):
+    def neighbours(self) -> list[int]:
         """
         Get the neighbours list.
 
@@ -132,7 +122,7 @@ class Node:
         return self._neighbours
 
     @property
-    def id(self):
+    def id(self) -> int:
         """
         Get the id.
 
@@ -149,62 +139,47 @@ class Node:
     def done(self):
         return self._done
 
-    def add_child(self, child_id: int):
+    def add_child(self, child_id: int) -> None:
         """
         Add a child to the children list.
 
         Args:
             child_id (int): The child id.
-
-        Returns:
-            None
         """
         self._children.append(child_id)
 
-    def set_leader(self, leader_id: int):
+    def set_leader(self, leader_id: int) -> None:
         """
         Set the leader id.
 
         Args:
             leader_id (int): The leader id.
-
-        Returns:
-            None
         """
         self._leader_id = leader_id
 
-    def set_able_to_request_parent(self, able_to_request_parent: bool):
+    def set_able_to_request_parent(self, able_to_request_parent: bool) -> None:
         """
         Set the able_to_request_parent flag.
 
         Args:
             able_to_request_parent (bool): The able_to_request_parent flag.
-
-        Returns:
-            None
         """
         self._able_to_request_parent = able_to_request_parent
 
-    def set_done(self, done: bool):
+    def set_done(self, done: bool) -> None:
         """
         Set the done flag.
 
         Args:
             done (bool): The done flag.
-
-        Returns:
-            None
         """
         self._done = done
 
-    def remove_neighbour(self, neighbour_id: int):
+    def remove_neighbour(self, neighbour_id: int) -> None:
         """
         Remove a neighbour from the neighbours list.
 
         Args:
             neighbour_id (int): The neighbour id.
-
-        Returns:
-            None
         """
         self._neighbours_ids.remove(neighbour_id)
