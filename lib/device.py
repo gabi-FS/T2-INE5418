@@ -55,9 +55,6 @@ class Device:
             client_socket, client_address = self._socket.accept()
             print(f"Node {self._id} accepted connection from {client_address}")
             handler(client_socket)
-            # Handle client in a separate thread
-            # client_thread = Thread(target=handler, args=(client_socket,))
-            # client_thread.start()
 
     def connect_to_node(self, neighbor_info: NodeInfo, neighbor_id: int) -> None:
         """

@@ -44,23 +44,24 @@ class Node:
 
     _id: int
     _neighbours: dict[int, NodeInfo]  # id: NodeInfo
-    _neighbours_ids: list[int]
+    _possible_parents_ids: list[int]
+    _children_ids: list[int]
     _done: bool
+    _able_to_request_parent: bool
     _is_leaf: bool
     _leader_id: int
-    _able_to_request_parent: bool
-    _children: list[int]
 
-    def __init__(self, id: int, neighbors_info: dict[int, NodeInfo]) -> None:
+    def __init__(self, id: int, neighbours_info: dict[int, NodeInfo]) -> None:
         self._id = id
-        self._neighbours = neighbors_info
-        self._neighbours_ids = list(neighbors_info.keys())
+        self._neighbours = neighbours_info
+        self._possible_parents_ids = list(neighbours_info.keys())
+        self._children_ids = []
         self._done = False
-        self._is_leaf = len(self._neighbours_ids) == 1
-        print(f"Node {self._id} is leaf: {self._is_leaf}")
-        self._leader_id = -1
         self._able_to_request_parent = False
-        self._children = []
+        self._is_leaf = len(self._possible_parents_ids) == 1
+        self._leader_id = -1
+        
+        print(f"Node {self._id} is leaf: {self._is_leaf}")
 
     def is_leader(self) -> bool:
         """
@@ -109,7 +110,7 @@ class Node:
         Returns:
             list[int]: The children list.
         """
-        return self._children
+        return self._children_ids
 
     @property
     def neighbours(self) -> list[int]:
@@ -132,8 +133,8 @@ class Node:
         return self._id
 
     @property
-    def neighbours_ids(self):
-        return self._neighbours_ids
+    def possible_parents_ids(self):
+        return self._possible_parents_ids
 
     @property
     def done(self):
@@ -146,7 +147,7 @@ class Node:
         Args:
             child_id (int): The child id.
         """
-        self._children.append(child_id)
+        self._children_ids.append(child_id)
 
     def set_leader(self, leader_id: int) -> None:
         """
@@ -175,11 +176,11 @@ class Node:
         """
         self._done = done
 
-    def remove_neighbour(self, neighbour_id: int) -> None:
+    def remove_possible_parent(self, neighbour_id: int) -> None:
         """
-        Remove a neighbour from the neighbours list.
+        Remove a neighbour from the possible parents list.
 
         Args:
             neighbour_id (int): The neighbour id.
         """
-        self._neighbours_ids.remove(neighbour_id)
+        self._possible_parents_ids.remove(neighbour_id)
