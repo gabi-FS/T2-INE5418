@@ -4,7 +4,7 @@ The socket manager is used to manage both the server and client sockets.
 
 import select
 from atexit import register
-from socket import AF_INET, SOCK_STREAM, socket, timeout, SHUT_RDWR
+from socket import AF_INET, SOCK_STREAM, socket, timeout
 
 
 class SocketManager():
@@ -154,7 +154,6 @@ class SocketManager():
         for client_socket in self._connected_clients.values():
             client_socket.close()
 
-        # self._server_socket.shutdown(SHUT_RDWR)
         self._server_socket.close()
 
     def close_client_sockets(self) -> None:
