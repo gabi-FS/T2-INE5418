@@ -21,14 +21,11 @@ def read_file(file_name):
 data = read_file(JSON_NAME)
 this_node_data = data[name]
 server_data = this_node_data["server"]
-client_data = this_node_data["client"]
 
 server_address = NodeAddress(server_data["host"], server_data["port"])
-client_address = NodeAddress(client_data["host"], client_data["port"])
 neighbors = {int(n["id"]): NodeAddress(n["host"], n["port"]) for n in this_node_data["neighbors"]}
 
 this_node = ElectionNode(this_node_data["id"],
-                         client_address,
                          server_address,
                          neighbors)
 

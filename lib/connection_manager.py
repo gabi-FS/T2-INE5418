@@ -24,7 +24,6 @@ class ConnectionManager():
     _socket_manager: SocketManager
     _server_thread: Thread
     _server_address: NodeAddress
-    _client_address: NodeAddress
     _neighbors_addresses: dict[int, NodeAddress]
     _server_finished: bool
     _server_thread: Thread | None
@@ -32,12 +31,10 @@ class ConnectionManager():
     def __init__(self,
                  node_id: int,
                  server_address: NodeAddress,
-                 client_address: NodeAddress,
                  neighbors_addresses: dict[int, NodeAddress],
                  timeout: float) -> None:
         self._node_id = node_id
         self._server_address = server_address
-        self._client_address = client_address
         self._socket_manager = SocketManager(timeout)
         self._neighbors_addresses = neighbors_addresses
         self._server_finished = False
@@ -127,8 +124,9 @@ class ConnectionManager():
             message (str): The message to be sent.
         """
 
-        if not self._socket_manager.is_connected_to_server(server_id):
-            self._socket_manager.connect_to_server(server_id, self._neighbors_addresses[server_id].address())
+        # TODO: Resolver problema de conexão com o servidor
+        # if not self._socket_manager.is_connected_to_server(server_id):
+        self._socket_manager.connect_to_server(server_id, self._neighbors_addresses[server_id].address())
 
         try:
             self._socket_manager.send_to_server(server_id, message)

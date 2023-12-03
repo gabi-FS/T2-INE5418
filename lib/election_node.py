@@ -67,13 +67,10 @@ class ElectionNode():
 
     def __init__(self,
                  id: int,
-                 client_node_address: NodeAddress,
                  server_node_address: NodeAddress,
                  neighbors: dict[int, NodeAddress],
                  timeout: float = 120.0) -> None:
         self._id = id
-        self._client_node_address = client_node_address
-        self._server_node_address = server_node_address
         self._neighbors = neighbors
         self._leader_id = -1
         self._possible_parents_ids = list(neighbors.keys())
@@ -85,7 +82,6 @@ class ElectionNode():
         # Be careful, the neighbors are passed as a reference.
         self._connection_manager = ConnectionManager(self._id,
                                                      server_node_address,
-                                                     client_node_address,
                                                      neighbors,
                                                      timeout)
 
@@ -171,19 +167,9 @@ class ElectionNode():
         """
 
         for child_id in self._children_ids:
-            self.send_leader_announcement(child_id, leader_id)
+            self._connection_manager.send_message_to_server(child_id,
+                                                            f"{MessageType.LEADER_ANNOUNCEMENT.value} {str(leader_id)}")
             # TODO: esperar ack?
-
-    def send_leader_announcement(self, child_id: int, leader_id: int) -> None:
-        """Sends leader annoucement.
-
-        Args:
-            child_id (int): The child who will receive the leader id.
-            leader_id (int): The leader id.
-        """
-
-        self._connection_manager.send_message_to_server(child_id,
-                                                        f"{MessageType.LEADER_ANNOUNCEMENT.value} {str(leader_id)}")
 
     def leader_election(self) -> int:
         """
@@ -241,7 +227,9 @@ class ElectionNode():
             bool: True if the request was accepted, False otherwise.
         """
 
+        print("Antes da mensagem do pai")
         message = self._connection_manager.receive_message_from_server(parent_id)
+        print("Depois da mensagem do pai")
 
         if message:
             message_type, node_id = message.split()
