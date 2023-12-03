@@ -9,7 +9,7 @@
             "port": 8001,
             "host": "localhost"
         },
-        "neighbours": [
+        "neighbors": [
             {
                 "id": 3,
                 "port": 8004,
@@ -28,7 +28,7 @@
             "port": 8003,
             "host": "localhost"
         },
-        "neighbours": [
+        "neighbors": [
             {
                 "id": 3,
                 "port": 8004,
@@ -48,7 +48,7 @@
             "port": 8005,
             "host": "localhost"
         },
-        "neighbours": [
+        "neighbors": [
             {
                 "id": 1,
                 "port": 8000,

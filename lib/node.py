@@ -43,7 +43,7 @@ class Node:
     """
 
     _id: int
-    _neighbours: dict[int, NodeInfo]  # id: NodeInfo
+    _neighbors: dict[int, NodeInfo]  # id: NodeInfo
     _possible_parents_ids: list[int]
     _children_ids: list[int]
     _done: bool
@@ -51,10 +51,10 @@ class Node:
     _is_leaf: bool
     _leader_id: int
 
-    def __init__(self, id: int, neighbours_info: dict[int, NodeInfo]) -> None:
+    def __init__(self, id: int, neighbors_info: dict[int, NodeInfo]) -> None:
         self._id = id
-        self._neighbours = neighbours_info
-        self._possible_parents_ids = list(neighbours_info.keys())
+        self._neighbors = neighbors_info
+        self._possible_parents_ids = list(neighbors_info.keys())
         self._children_ids = []
         self._done = False
         self._able_to_request_parent = False
@@ -113,14 +113,14 @@ class Node:
         return self._children_ids
 
     @property
-    def neighbours(self) -> list[int]:
+    def neighbors(self) -> list[int]:
         """
-        Get the neighbours list.
+        Get the neighbors list.
 
         Returns:
-            list[int]: The neighbours list.
+            list[int]: The neighbors list.
         """
-        return self._neighbours
+        return self._neighbors
 
     @property
     def id(self) -> int:
@@ -176,11 +176,11 @@ class Node:
         """
         self._done = done
 
-    def remove_possible_parent(self, neighbour_id: int) -> None:
+    def remove_possible_parent(self, neighbor_id: int) -> None:
         """
-        Remove a neighbour from the possible parents list.
+        Remove a neighbor from the possible parents list.
 
         Args:
-            neighbour_id (int): The neighbour id.
+            neighbor_id (int): The neighbor id.
         """
-        self._possible_parents_ids.remove(neighbour_id)
+        self._possible_parents_ids.remove(neighbor_id)

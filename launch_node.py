@@ -28,16 +28,15 @@ this_node = controller.Controller(
     node.NodeInfo(client_data["host"], client_data["port"]),
 )
 
-neighbours = {}
-for n in this_node_data["neighbours"]:
-    neighbours[int(n["id"])] = node.NodeInfo(n["host"], n["port"])
+neighbors = {}
+for n in this_node_data["neighbors"]:
+    neighbors[int(n["id"])] = node.NodeInfo(n["host"], n["port"])
 
-print(neighbours)
+print(neighbors)
 
-this_node.start(neighbours, this_node_data["id"])
-
-print(data)
-print(data[name])
+this_node.start(neighbors, this_node_data["id"])
 
 time.sleep(30)
-this_node.leader_election()
+leader_id = this_node.leader_election()
+
+print("Finalizando o processo, id do líder é", leader_id)

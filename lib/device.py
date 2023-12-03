@@ -19,6 +19,7 @@ class Device:
     _socket: socket 
     _neighbors: dict[int, socket] # list of identifiers of other Nodes connected to this
     _timeout: float
+    _end_server: bool
 
     def __init__(
         self,
@@ -32,6 +33,7 @@ class Device:
         self._neighbors = {}
         self._timeout = timeout
         self._id = 0
+        self._end_server = False
 
     def start_device(self, id: int, handler) -> None:
         """
@@ -51,11 +53,14 @@ class Device:
             f"Node {self._id} listening on {self._server_cfg.host}:{self._server_cfg.port}"
         )
 
-        while True:
+        while not self._end_server:
             client_socket, client_address = self._socket.accept()
             print(f"Node {self._id} accepted connection from {client_address}")
             handler(client_socket)
-
+        
+        print("Finalizando server.")
+        self._socket.close()
+            
     def connect_to_node(self, neighbor_info: NodeInfo, neighbor_id: int) -> None:
         """
         Connects the current node to a neighbor node.
@@ -164,3 +169,9 @@ class Device:
             int: The node id.
         """
         return self._id
+    
+    def did_server_ended(self) -> bool:
+        return self._end_server
+    
+    def server_should_finish(self) -> None:
+        self._end_server = True
