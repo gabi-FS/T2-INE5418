@@ -158,6 +158,7 @@ class ElectionNode():
                 with self._parent_response_mutex:
                     
                     self.send_parenting_request(neighbor_id)
+                    self._is_waiting_for = (True, neighbor_id)
 
                     print(" Leaf Waiting for parent response")
                     self._parent_response_condition.wait()
@@ -262,7 +263,7 @@ class ElectionNode():
             self.add_child(node_id)
             self.remove_possible_parent(node_id)
 
-            if len(self._possible_parents_ids) == 1:
+            if len(self._possible_parents_ids) <= 1:
                 with self._able_to_request_parent_mutex:
                     self._able_to_request_parent = True
                     self._able_to_request_parent_condition.notify()
