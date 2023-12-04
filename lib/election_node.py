@@ -298,9 +298,10 @@ class ElectionNode:
             self.remove_possible_parent(node_id)
 
             if len(self._possible_parents_ids) <= 1:
-                with self._able_to_request_parent_mutex:
-                    self._able_to_request_parent = True
-                    self._able_to_request_parent_sem.release()
+                # with self._able_to_request_parent_mutex:
+                self._able_to_request_parent = True
+                self._able_to_request_parent_sem.release()
+            print("antes de send message")
 
             self._connection_manager.send_message(
                 node_id, f"{MessageType.PARENT_ACK_RESPONSE.value} {str(self._id)}"
