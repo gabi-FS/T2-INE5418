@@ -5,7 +5,7 @@ Election algorithm definition
 
 from enum import Enum
 from random import randint
-from threading import Condition, Lock, Thread, Semaphore
+from threading import Condition, Lock, Semaphore, Thread
 from time import sleep
 
 from lib.connection_manager import ConnectionManager
@@ -86,21 +86,13 @@ class ElectionNode:
         self._connection_manager = ConnectionManager(
             self._id, server_node_address, neighbors, timeout
         )
-
-        self._able_to_request_parent = False
-        self._able_to_request_parent_mutex = Lock()
-        # self._able_to_request_parent_condition = Condition(
-        # self._able_to_request_parent_mutex
-        # )
-
         self._parent_response = None
-        self._parent_response_mutex = Lock()
-        # self._parent_response_condition = Condition(self._parent_response_mutex)
-
+        self._is_waiting_for = (False, None)
         self._leader_id = -1
+
         self._leader_mutex = Lock()
         self._leader_condition = Condition(self._leader_mutex)
-        self._is_waiting_for = (False, None)
+        
 
         self._able_to_request_parent_sem = Semaphore(0)
         self._parent_response_sem = Semaphore(0)
@@ -166,8 +158,8 @@ class ElectionNode:
             ):  # if the node is a leaf, send a request to its only neighbor
                 neighbor_id = self._possible_parents_ids[0]
                 print("Leaf vai tentar mandar parenting request")
-                with self._parent_response_mutex:
-                    self.send_parenting_request(neighbor_id)
+                self.send_parenting_request(neighbor_id)
+                
                 with self._is_waiting_for_mutex:
                     self._is_waiting_for = (True, neighbor_id)
 
@@ -175,15 +167,11 @@ class ElectionNode:
                 self._parent_response_sem.acquire()
 
                 print(f"Parent response: {self._parent_response}")
-                with self._parent_response_mutex:
-                    if self._parent_response:
-                        self._done = True
+                if self._parent_response:
+                    self._done = True
             else:
                 self._able_to_request_parent_sem.acquire()
-                print(
-                    "passou da espera do semáforo, able to request parent:",
-                    self._able_to_request_parent,
-                )
+                print("passou da espera do semáforo")
 
                 while True:  # While em caso de root contention
                     self._possible_parents_ids_mutex.acquire()
@@ -198,31 +186,28 @@ class ElectionNode:
                         self._done = True
                         self._connection_manager.finish_server()
                         break
-                    else:
-                        self._possible_parents_ids_mutex.release()
+                    
+                    self._possible_parents_ids_mutex.release()
 
-                    print("vai esperar parent response condition")
-                    with self._parent_response_mutex:
-                        self.send_parenting_request(self._possible_parents_ids[0])
 
+                    self.send_parenting_request(self._possible_parents_ids[0])
                     with self._is_waiting_for_mutex:
                         self._is_waiting_for = (
                             True,
                             self._possible_parents_ids[0],
                         )
+                        
+                    print("enviou request, vai esperar resposta")
                     self._parent_response_sem.acquire()
-
                     print("passou do parent response condition")
-                    with self._parent_response_mutex:
-                        if self._parent_response:
-                            self._able_to_request_parent = False
+                    if self._parent_response:
                             self._done = True
                             break
-
-                        # root contention? -> if the request was not accepted, try again after some time
-                        print("try again after some time")
-                        sleep_time = randint(1, 3000)
-                        sleep(float(30 / sleep_time))
+                        
+                    # root contention? -> if the request was not accepted, try again after some time
+                    print("try again after some time")
+                    sleep_time = randint(1, 3000)
+                    sleep(float(30 / sleep_time))
 
         if self._id != self._leader_id:
             print(
@@ -265,20 +250,17 @@ class ElectionNode:
                         self._leader_condition.notify()
                         self._connection_manager.finish_server()  # Vai fazer não receber mais mensagens.
                 case MessageType.PARENT_ACK_RESPONSE.value:
-                    with self._parent_response_mutex:
-                        self._parent_response = True
-                        self._parent_response_sem.release()
+                    self._parent_response = True
+                    self._parent_response_sem.release()
                     print(
                         f"Node {self._id} received parent ack response from {node_id}"
                     )
                 case MessageType.PARENT_REJECT_MESSAGE.value:
-                    with self._parent_response_mutex:
-                        self._parent_response = False
-                        self._parent_response_sem.release()
+                    self._parent_response = False
+                    self._parent_response_sem.release()
                 case MessageType.ERROR.value:  # TODO: especificar msg de erro pra rejeição?
-                    with self._parent_response_mutex:
-                        self._parent_response = False
-                        self._parent_response_sem.release()
+                    self._parent_response = False
+                    self._parent_response_sem.release()
                 case _:
                     print(f"Node {self._id} received unknown message from {node_id}")
 
@@ -297,7 +279,10 @@ class ElectionNode:
         print(f"Parenting request from {node_id}")
 
         with self._is_waiting_for_mutex:
+            print("entrou no mutex", self._is_waiting_for)
             concurrency = self._is_waiting_for[0] and node_id == self._is_waiting_for[1]
+            
+        print(concurrency)
         if (
             not concurrency
             and node_id in self._possible_parents_ids
@@ -311,8 +296,6 @@ class ElectionNode:
             self._possible_parents_ids_mutex.acquire()
             if len(self._possible_parents_ids) <= 1:
                 self._possible_parents_ids_mutex.release()
-                # with self._able_to_request_parent_mutex:
-                self._able_to_request_parent = True
                 self._able_to_request_parent_sem.release()
             else:
                 self._possible_parents_ids_mutex.release()
@@ -324,11 +307,11 @@ class ElectionNode:
 
         else:
             if concurrency:
-                with self._parent_response_mutex:
-                    self._parent_response = False
-
+                print("concorrencia antes do mutex")
+                self._parent_response = False
                 with self._is_waiting_for_mutex:
                     self._is_waiting_for = (False, None)
+                    
                 self._parent_response_sem.release()
 
             print("Reject parent request from", node_id)
