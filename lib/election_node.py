@@ -144,7 +144,7 @@ class ElectionNode():
 
         self._connection_manager.server_thread.join()
         self.leader_election()
-        self._connection_manager.close_client_sockets()
+        self._connection_manager.close_all_sockets()
 
     def leader_election(self) -> None:
         """
@@ -154,7 +154,7 @@ class ElectionNode():
         while not self._done:
             if self._is_leaf:  # if the node is a leaf, send a request to its only neighbor
                 neighbor_id = self._possible_parents_ids[0]
-                print("vou tentar mandar??")
+                print("Leaf vai tentar mandar parenting request")
                 with self._parent_response_mutex:
                     
                     self.send_parenting_request(neighbor_id)
@@ -167,13 +167,11 @@ class ElectionNode():
                 if self._parent_response:
                     self._done = True
             else:
-                print("esperando able to request?")
+                print("esperando able to request mutex")
                 with self._able_to_request_parent_mutex:
-                    print("entrou no wait")
+                    print("entrou no wait do able to request mutex")
                     self._able_to_request_parent_condition.wait()
-
-                    print("passou da espera do able to request")
-                    print("able to request parent:", self._able_to_request_parent)
+                    print("passou da espera do mutex, able to request parent:", self._able_to_request_parent)
                     if self._able_to_request_parent:
                         while True: # While em caso de root contention
                             if len(self._possible_parents_ids) == 0:
@@ -197,20 +195,21 @@ class ElectionNode():
                                 self._done = True
                                 break
                             
-                            # root contention?
-                            # if the request was not accepted, try again after some time
+                            # root contention? -> if the request was not accepted, try again after some time
                             print("try again after some time")
                             sleep_time = randint(1, 3000)
-                            
                             sleep(float(30 / sleep_time))
 
-
-        with self._leader_mutex:
-            self._leader_condition.wait()
+        if self._id != self._leader_id:
+            print("### Nodo finalizado, entra em estado de espera por anuncio do líder.")
+            with self._leader_mutex:
+                self._leader_condition.wait()
+        else:
+            print("### Nodo finalizado, é o líder!")
 
     def handle_message(self, node_id: int, message: str, node_message: int) -> None:
         """
-        Handles the client connection and receives data from the client.
+        Handles the connection and receives data from a neighbor node.
         """
 
         print(f"Mensagem recebida do nó {node_id}: {message}")
@@ -235,7 +234,7 @@ class ElectionNode():
                     with self._parent_response_mutex:
                         self._parent_response = False
                         self._parent_response_condition.notify()
-                case "error": # TODO: especificar msg de erro pra rejeição?
+                case MessageType.ERROR.value: # TODO: especificar msg de erro pra rejeição?
                     with self._parent_response_mutex:
                         self._parent_response = False
                         self._parent_response_condition.notify()
@@ -245,35 +244,30 @@ class ElectionNode():
         except Exception as exception:
             print(f"Node {self._id} error: {exception}")
 
-    def handle_parenting_request(self, client_node_id: int) -> None:
+    def handle_parenting_request(self, node_id: int) -> None:
         """
-        Handles the request received from a client.
+        Handles the parenting request received from a node.
 
         Args:
             client_socket (socket): The socket object representing the client connection.
-            client_id (int): The ID of the client.
+            node_id (int): The ID of the node.
         """
 
-        print(f"Parenting request from {client_node_id}")
-        
-        concurrency = self._is_waiting_for[0] and client_node_id == self._is_waiting_for[1]
+        print(f"Parenting request from {node_id}")
+    
+        concurrency = self._is_waiting_for[0] and node_id == self._is_waiting_for[1]
+        if not concurrency and node_id in self._possible_parents_ids and not self._is_leaf:
+            print("Accept parenting request from", node_id)
 
-        if not concurrency and client_node_id in self._possible_parents_ids and not self._is_leaf:
-            print("Accept parenting request from", client_node_id)
-
-            self.add_child(client_node_id)
-            self.remove_possible_parent(client_node_id)
+            self.add_child(node_id)
+            self.remove_possible_parent(node_id)
 
             if len(self._possible_parents_ids) == 1:
                 with self._able_to_request_parent_mutex:
                     self._able_to_request_parent = True
                     self._able_to_request_parent_condition.notify()
 
-            error = self._connection_manager.send_message_to_server(client_node_id,
-                                                            f"{MessageType.PARENT_ACK_RESPONSE.value} {str(self._id)}")
-            if error:
-                self._connection_manager.send_message_to_client(client_node_id,
-                                                            f"{MessageType.PARENT_ACK_RESPONSE.value} {str(self._id)}")
+            self._connection_manager.send_message(node_id, f"{MessageType.PARENT_ACK_RESPONSE.value} {str(self._id)}")
         else:
             if concurrency:
                 with self._parent_response_mutex:
@@ -281,35 +275,27 @@ class ElectionNode():
                     self._is_waiting_for = (False, None)
                     self._parent_response_condition.notify()
 
-            print("Reject parent request from", client_node_id)
+            print("Reject parent request from", node_id)
 
-            self._connection_manager.send_message_to_client(client_node_id,
-                                                            f"{MessageType.ERROR.value} {str(self._id)}",)
+            self._connection_manager.send_message(node_id, f"{MessageType.ERROR.value} {str(self._id)}")
+
 
     def broadcast_leader_announcement(self, leader_id: int) -> None:
         """Broadcast leader annoucement for the children.
 
         Args:
-            leader_id (int): _description_
+            leader_id (int): The id of the winner node.
         """
 
         for child_id in self._children_ids:
-            error = self._connection_manager.send_message_to_server(child_id,
-                                                            f"{MessageType.LEADER_ANNOUNCEMENT.value} {str(leader_id)}")
-            if error:
-                self._connection_manager.send_message_to_client(child_id,
-                                                            f"{MessageType.LEADER_ANNOUNCEMENT.value} {str(leader_id)}")
+            self._connection_manager.send_message(child_id, f"{MessageType.LEADER_ANNOUNCEMENT.value} {str(leader_id)}")
 
     def send_parenting_request(self, parent_id: int) -> None:
         """
         Sends a parenting request.
         """
         
-        # NÃO CONSIGO SABER SE A CONEXÃO É POR SERVER OU POR CLIENTE...
-        error = self._connection_manager.send_message_to_server(
-            parent_id, f"{MessageType.CHILD_PARENTING_REQUEST.value} {str(self._id)}")
-        if error:
-            self._connection_manager.send_message_to_client(parent_id, f"{MessageType.CHILD_PARENTING_REQUEST.value} {str(self._id)}")
+        self._connection_manager.send_message(parent_id, f"{MessageType.CHILD_PARENTING_REQUEST.value} {str(self._id)}")
 
     def add_child(self, child_id: int) -> None:
         """
