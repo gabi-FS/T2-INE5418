@@ -57,6 +57,9 @@ class SocketManager():
         if self._server_socket in readable:
             client_socket, client_address = self._server_socket.accept()
             self._connected_clients[client_address] = client_socket
+
+            print(f"Aceitou conexão de {client_address}")
+
             return client_address
 
     def is_connected_to_server(self, server_id: int) -> bool:
@@ -102,13 +105,26 @@ class SocketManager():
         except Exception as exception:
             print(f"Socket error: {exception}")
 
-    def receive_from_client(self, address: tuple[str, int]) -> str:
+    def receive_from_client_by_address(self, address: tuple[str, int]) -> str:
         """
         Receives a message from a client using the client address.
         """
 
         try:
             message = self._connected_clients[address].recv(1024).decode("utf-8")
+        except Exception as exception:
+            print(f"Socket error: {exception}")
+            message = ""
+
+        return message
+
+    def receive_from_client_by_id(self, client_id: int) -> str:
+        """
+        Receives a message from a client using the client id.
+        """
+
+        try:
+            message = self._connected_clients[self._connected_clients_addresses[client_id]].recv(1024).decode("utf-8")
         except Exception as exception:
             print(f"Socket error: {exception}")
             message = ""

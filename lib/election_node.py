@@ -85,27 +85,25 @@ class ElectionNode():
                                                      server_node_address,
                                                      neighbors,
                                                      timeout)
-        
-        
+
         self._able_to_request_parent = False
         self._able_to_request_parent_mutex = Lock()
         self._able_to_request_parent_condition = Condition(self._able_to_request_parent_mutex)
-        
-        
+
         self._parent_response = None
         self._parent_response_mutex = Lock()
         self._parent_response_condition = Condition(self._parent_response_mutex)
-        
+
         self._leader_id = -1
         self._leader_mutex = Lock()
         self._leader_condition = Condition(self._leader_mutex)
-        
+
         self._election_thread = None
 
         print(f"Node {self._id} is leaf: {self._is_leaf}")
 
-    ## public lib methods
-    
+    # public lib methods
+
     def start_server(self) -> None:
         """
         Starts the node server and start the accept of other requests in another thread.
@@ -114,39 +112,39 @@ class ElectionNode():
         self._connection_manager.start_server(self.handle_message)
         self._election_thread = Thread(target=self.process_leader_election)
         self._election_thread.start()
-        
-        
+
     def wait_for_election(self) -> int:
         """
         Block the process until the leader election ends, returning it's result.
         """
         self._election_thread.join()
         return self._leader_id
-    
-    def start_the_election(self, block_until_result = True) -> int:
+
+    def start_the_election(self, block_until_result=True) -> int:
         """
         Starts the election process, broadcasting to other nodes.
-        
+
         Args:
             block_until_result (bool): if True, will wait for the result of the election and return it. If false, returns -1, and the result can be obtained from the ElectionNode class in nondeterministic time.
         """
         self._connection_manager.start_leader_election(self.handle_message)
-        
+
         if block_until_result:
             return self.wait_for_election()
         else:
             return -1
-        
+
     # non public lib methods
-    
+
     def process_leader_election(self):
-        """Wait for the end of the process of waiting for leader election, and then starts it.
         """
-        
+        Wait for the end of the process of waiting for leader election, and then starts it.
+        """
+
         self._connection_manager.server_thread.join()
         self.leader_election()
         self._connection_manager.close_client_sockets()
-    
+
     def leader_election(self) -> None:
         """
         Performs the leader election algorithm, setting the leader_id attribute and finish only when election ends.
@@ -158,14 +156,18 @@ class ElectionNode():
 
                 with self._parent_response_mutex:
                     self.send_parenting_request(neighbor_id)
+
+                    print("Waiting for parent response")
                     self._parent_response_condition.wait()
+
+                    print(f"Parent response: {self._parent_response}")
 
                 if self._parent_response:
                     self._done = True
             else:
                 with self._able_to_request_parent_mutex:
                     self._able_to_request_parent_condition.wait()
-                    
+
                     if self._able_to_request_parent:
                         if len(self._possible_parents_ids) == 0:
                             print(self._id, "is leader")
@@ -185,15 +187,16 @@ class ElectionNode():
                                 # if the request was not accepted, try again after some time
                                 sleep_time = randint(1, 3000)
                                 sleep(float(30 / sleep_time))
-        
-        with self._leader_mutex: 
-            self._leader_condition.wait()
 
+        with self._leader_mutex:
+            self._leader_condition.wait()
 
     def handle_message(self, node_id: int, message: str) -> None:
         """
         Handles the client connection and receives data from the client.
         """
+
+        print(f"Mensagem recebida do nó {node_id}: {message}")
 
         try:
             match message:
@@ -205,19 +208,19 @@ class ElectionNode():
                         self._leader_id = node_id
                         self.broadcast_leader_announcement(node_id)
                         self._leader_condition.notify()
-                        self._connection_manager.finish_server() # Vai fazer não receber mais mensagens.
-                        
+                        self._connection_manager.finish_server()  # Vai fazer não receber mais mensagens.
                 case MessageType.PARENT_ACK_RESPONSE.value:
                     with self._parent_response_mutex:
                         self._parent_response = True
                         self._parent_response_condition.notify()
                     print(f"Node {self._id} received parent ack response from {node_id}")
                 case MessageType.PARENT_REJECT_MESSAGE.value:
-                     with self._parent_response_mutex:
+                    with self._parent_response_mutex:
                         self._parent_response = False
                         self._parent_response_condition.notify()
-                    
-                
+                case _:
+                    print(f"Node {self._id} received unknown message from {node_id}")
+
         except Exception as exception:
             print(f"Node {self._id} error: {exception}")
 
@@ -229,6 +232,8 @@ class ElectionNode():
             client_socket (socket): The socket object representing the client connection.
             client_id (int): The ID of the client.
         """
+
+        print(f"Parenting request from {client_node_id}")
 
         if client_node_id in self._possible_parents_ids and not self._is_leaf:
             print("Accept parenting request from", client_node_id)
@@ -262,13 +267,13 @@ class ElectionNode():
                                                             f"{MessageType.LEADER_ANNOUNCEMENT.value} {str(leader_id)}")
             # TODO: esperar ack?
 
-
     def send_parenting_request(self, parent_id: int) -> None:
         """
         Sends a parenting request.
         """
 
-        self._connection_manager.send_message_to_client(parent_id,  f"{MessageType.CHILD_PARENTING_REQUEST.value} {str(self._id)}")
+        self._connection_manager.send_message_to_server(
+            parent_id, f"{MessageType.CHILD_PARENTING_REQUEST.value} {str(self._id)}")
 
     def add_child(self, child_id: int) -> None:
         """
@@ -289,4 +294,3 @@ class ElectionNode():
         """
 
         self._possible_parents_ids.remove(parent_id)
-        

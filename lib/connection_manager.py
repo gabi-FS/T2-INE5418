@@ -15,7 +15,8 @@ if TYPE_CHECKING:
     from lib.election_node import NodeAddress
 
 
-start_election_message = "start_election" #Mover daqui dps?
+start_election_message = "start_election"  # Mover daqui dps?
+
 
 class ConnectionManager():
 
@@ -25,7 +26,6 @@ class ConnectionManager():
 
     _node_id: int
     _socket_manager: SocketManager
-    _server_thread: Thread
     _server_address: NodeAddress
     _neighbors_addresses: dict[int, NodeAddress]
     _server_finished: bool
@@ -78,66 +78,70 @@ class ConnectionManager():
         print(f"Node {self._node_id} listening on {self._server_address}")
         self._server_thread = Thread(target=self.wait_for_election, args=(handle_message,))
         self._server_thread.start()
-        
+
     def start_leader_election(self, handle_message):
         # Dúvida: e se dois começarem ao mesmo tempo?
-        
+
         self._waiting_for_election = False
         not_connected_neighbors = list(self._neighbors_addresses.keys())
         for neighbour_id in not_connected_neighbors:
             address = self._neighbors_addresses[neighbour_id].get_address()
             self._socket_manager.connect_to_server(neighbour_id, address)
             self.send_message_to_server(neighbour_id, f"{start_election_message} {self._node_id}")
-            self._socket_manager.bind_client_id_to_address(neighbour_id,  address)
-            client_thread = Thread(target=self.handle_client_thread, args=(neighbour_id, handle_message))
-            client_thread.start()
-            
+            server_thread = Thread(target=self.handle_server_thread, args=(neighbour_id, handle_message))
+            server_thread.start()
+
         # Iniciar eleição aqui? Ou depois dos acks?
-        
+
     def wait_for_election(self, handle_message):
         print("Tá esperando eleição, vai entrar no accept")
         while self._waiting_for_election:
             not_connected_neighbours = list(self._neighbors_addresses.keys())
             client_address = self._socket_manager.accept()
-            
+
             if client_address:
                 print(f"Node {self._node_id} accepted connection from {client_address[0]}:{client_address[1]}")
 
-                message, client_node_id = self._socket_manager.receive_from_client(client_address).split()
+                message, client_node_id = self._socket_manager.receive_from_client_by_address(client_address).split()
 
                 client_node_id = int(client_node_id)
 
                 print(f"Node {self._node_id} received message \"{message}\" from node {client_node_id}")
-                                
+
                 if start_election_message == message:
                     self._waiting_for_election = False
-                    
+
                     not_connected_neighbours.remove(client_node_id)
                     self._socket_manager.bind_client_id_to_address(client_node_id, client_address)
-                    
+
                     # Fazer broadcast; -> Para os vizinhos! E criar conexões com cada um deles. Seria necessário esperar acks se já conecta antes de enviar msg?
                     for neighbour_id in not_connected_neighbours:
                         address = self._neighbors_addresses[neighbour_id].get_address()
                         self._socket_manager.connect_to_server(neighbour_id, address)
                         self.send_message_to_server(neighbour_id, f"{start_election_message} {self._node_id}")
-                        self._socket_manager.bind_client_id_to_address(neighbour_id, address)
-                        client_thread = Thread(target=self.handle_client_thread, args=(neighbour_id, handle_message))
-                        client_thread.start()
-                        
-                    
+                        server_thread = Thread(target=self.handle_server_thread, args=(neighbour_id, handle_message))
+                        server_thread.start()
+
+                    print(f"Inicializando thread do cliente {client_node_id}")
                     client_thread = Thread(target=self.handle_client_thread, args=(client_node_id, handle_message))
                     client_thread.start()
-                    
-        
+
         # print("Closing server") não iria usar essa socket p mais nada, ent faz sentido já finalizar ela pra mim
         # self._socket_manager.close_server_socket()
-        
-        
+
     def handle_client_thread(self, client_id: int, handle_message) -> None:
-        while self._server_finished:
-            message, client_node_id = self._socket_manager.receive_from_client(self._neighbors_addresses[client_id].get_address())
-            handle_message(client_node_id, message)
-            
+        print(f"Node {self._node_id} handling client thread {client_id}, server {self._server_finished}")
+        while not self._server_finished:
+            print(f"Node {self._node_id} waiting for message from {client_id}")
+            message, _ = self._socket_manager.receive_from_client_by_id(client_id).split()
+            handle_message(client_id, message)
+
+    def handle_server_thread(self, server_id: int, handle_message) -> None:
+        print(f"Node {self._node_id} handling server thread {server_id}, server {self._server_finished}")
+        while not self._server_finished:
+            print(f"Node {self._node_id} waiting for message from {server_id}")
+            message, _ = self._socket_manager.receive_from_server(server_id).split()
+            handle_message(server_id, message)
 
     def send_message_to_client(self, client_node_id: int, message: str) -> None:
         """
@@ -192,6 +196,6 @@ class ConnectionManager():
         """
 
         self._socket_manager.close_connection_with_server(server_id)
-        
+
     def close_client_sockets(self) -> None:
         self._socket_manager.close_client_sockets()
