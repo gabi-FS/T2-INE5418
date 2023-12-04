@@ -150,11 +150,11 @@ class ConnectionManager():
 
         try:
             self._socket_manager.send_to_client(client_node_id, message)
-            print(f"Node {self._node_id} sent message: {message}")
+            print(f"Node {self._node_id} sent message: {message} to {client_node_id}")
         except Exception as exception:
             print(f"Node {self._node_id} error: {exception}")
 
-    def send_message_to_server(self, server_id: int, message: str) -> None:
+    def send_message_to_server(self, server_id: int, message: str) -> bool:
         """
         Sends a message to a neighbor socket.
 
@@ -164,10 +164,12 @@ class ConnectionManager():
         """
         # Sempre estaria conectado nesse ponto...
         try:
-            self._socket_manager.send_to_server(server_id, message)
-            print(f"Node {self._node_id} sent message to {server_id}: {message}")
+            error = self._socket_manager.send_to_server(server_id, message)
+            if not error: print(f"Node {self._node_id} sent message to {server_id}: {message}")
+            return error
         except Exception as exception:
             print(f"Node {self._node_id} error: {exception}")
+            return True
 
     def receive_message_from_server(self, server_id: int) -> str | None:
         """

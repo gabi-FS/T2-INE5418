@@ -95,15 +95,17 @@ class SocketManager():
         except Exception as exception:
             print(f"Socket error: {exception}")
 
-    def send_to_server(self, server_id: int, message: str) -> None:
+    def send_to_server(self, server_id: int, message: str) -> bool:
         """
         Sends a message to a server using the server id.
         """
 
         try:
             self._client_sockets[server_id].sendall(message.encode("utf-8"))
+            return False
         except Exception as exception:
             print(f"Socket error: {exception}")
+            return True
 
     def receive_from_client_by_address(self, address: tuple[str, int]) -> str:
         """

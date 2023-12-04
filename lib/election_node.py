@@ -3,10 +3,10 @@ Election algorithm definition
 """
 
 
-from asyncio import sleep
 from enum import Enum
 from random import randint
 from threading import Condition, Lock, Thread
+from time import sleep
 
 from lib.connection_manager import ConnectionManager
 
@@ -153,11 +153,12 @@ class ElectionNode():
         while not self._done:
             if self._is_leaf:  # if the node is a leaf, send a request to its only neighbor
                 neighbor_id = self._possible_parents_ids[0]
-
+                print("vou tentar mandar??")
                 with self._parent_response_mutex:
+                    
                     self.send_parenting_request(neighbor_id)
 
-                    print("Waiting for parent response")
+                    print(" Leaf Waiting for parent response")
                     self._parent_response_condition.wait()
 
                     print(f"Parent response: {self._parent_response}")
@@ -173,13 +174,15 @@ class ElectionNode():
                     print("passou da espera do able to request")
                     print("able to request parent:", self._able_to_request_parent)
                     if self._able_to_request_parent:
-                        if len(self._possible_parents_ids) == 0:
-                            print(self._id, "is leader")
-                            self._leader_id = self._id
-                            self.broadcast_leader_announcement(self._id)
-                            self._done = True
-                            self._connection_manager.finish_server()
-                        else:
+                        while True: # While em caso de root contention
+                            if len(self._possible_parents_ids) == 0:
+                                print(self._id, "is leader")
+                                self._leader_id = self._id
+                                self.broadcast_leader_announcement(self._id)
+                                self._done = True
+                                self._connection_manager.finish_server()
+                                break
+                            
                             print("vai esperar parent response condition")
                             with self._parent_response_mutex:
                                 self.send_parenting_request(self._possible_parents_ids[0])
@@ -190,14 +193,16 @@ class ElectionNode():
                             if self._parent_response:
                                 self._able_to_request_parent = False
                                 self._done = True
-                            else:  # root contention?
-                                # if the request was not accepted, try again after some time
-                                print("try again after some time")
-                                sleep_time = randint(1, 3000)
-                                sleep(float(30 / sleep_time))
-                    
-                    if not self._done:            
-                        self._able_to_request_parent_condition.notify() # Liberar para o próximo loop
+                                break
+                            
+                            # root contention?
+                            # if the request was not accepted, try again after some time
+                            print("try again after some time")
+                            sleep_time = randint(1, 3000)
+                            
+                            # sleep(float(30 / sleep_time))
+                            sleep(30)
+
 
         with self._leader_mutex:
             self._leader_condition.wait()
@@ -261,7 +266,10 @@ class ElectionNode():
                     self._able_to_request_parent = True
                     self._able_to_request_parent_condition.notify()
 
-            self._connection_manager.send_message_to_client(client_node_id,
+            error = self._connection_manager.send_message_to_server(client_node_id,
+                                                            f"{MessageType.PARENT_ACK_RESPONSE.value} {str(self._id)}")
+            if error:
+                self._connection_manager.send_message_to_client(client_node_id,
                                                             f"{MessageType.PARENT_ACK_RESPONSE.value} {str(self._id)}")
         else:
             # TODO: E se eu recebi uma requisição de alguém que eu já tinha mandado?
@@ -288,9 +296,12 @@ class ElectionNode():
         """
         Sends a parenting request.
         """
-
-        self._connection_manager.send_message_to_server(
+        
+        # NÃO CONSIGO SABER SE A CONEXÃO É POR SERVER OU POR CLIENTE...
+        error = self._connection_manager.send_message_to_server(
             parent_id, f"{MessageType.CHILD_PARENTING_REQUEST.value} {str(self._id)}")
+        if error:
+            self._connection_manager.send_message_to_client(parent_id, f"{MessageType.CHILD_PARENTING_REQUEST.value} {str(self._id)}")
 
     def add_child(self, child_id: int) -> None:
         """
