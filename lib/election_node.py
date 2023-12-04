@@ -168,6 +168,7 @@ class ElectionNode():
                 with self._able_to_request_parent_mutex:
                     self._able_to_request_parent_condition.wait()
 
+                    print("passou da espera do able to request")
                     if self._able_to_request_parent:
                         if len(self._possible_parents_ids) == 0:
                             print(self._id, "is leader")
@@ -179,14 +180,19 @@ class ElectionNode():
                             with self._parent_response_mutex:
                                 self.send_parenting_request(self._possible_parents_ids[0])
                                 self._parent_response_condition.wait()
+                            
+                            print("able to request parent:", self._able_to_request_parent)
 
                             if self._parent_response:
                                 self._able_to_request_parent = False
                                 self._done = True
                             else:  # root contention?
                                 # if the request was not accepted, try again after some time
+                                print("try again after some time")
                                 sleep_time = randint(1, 3000)
                                 sleep(float(30 / sleep_time))
+                                
+                        self._able_to_request_parent_condition.notify() # Liberar para o próximo loop
 
         with self._leader_mutex:
             self._leader_condition.wait()
@@ -242,7 +248,9 @@ class ElectionNode():
             self.remove_possible_parent(client_node_id)
 
             if len(self._possible_parents_ids) == 1:
-                self._able_to_request_parent = True
+                with self._able_to_request_parent_mutex:
+                    self._able_to_request_parent = True
+                    self._able_to_request_parent_condition.notify()
 
             self._connection_manager.send_message_to_client(client_node_id,
                                                             f"{MessageType.PARENT_ACK_RESPONSE.value} {str(self._id)}")
