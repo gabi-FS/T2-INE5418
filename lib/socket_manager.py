@@ -28,7 +28,7 @@ class SocketManager():
         self._connected_clients_addresses = {}
         self._timeout = timeout
 
-        self._server_socket.setblocking(False)
+        # self._server_socket.setblocking(False)
 
         # Register the close_sockets method to be called when the program ends.
         # The sockets can also be closed at any moment.
@@ -57,6 +57,9 @@ class SocketManager():
         if self._server_socket in readable:
             client_socket, client_address = self._server_socket.accept()
             self._connected_clients[client_address] = client_socket
+
+            print(f"Aceitou conexão de {client_address}")
+
             return client_address
 
     def is_connected_to_server(self, server_id: int) -> bool:
@@ -80,6 +83,7 @@ class SocketManager():
 
         self._client_sockets[server_id] = socket(AF_INET, SOCK_STREAM)
         self._client_sockets[server_id].connect(address)
+        print("enviou conexao")
 
     def send_to_client(self, client_id: int, message: str) -> None:
         """
@@ -91,23 +95,38 @@ class SocketManager():
         except Exception as exception:
             print(f"Socket error: {exception}")
 
-    def send_to_server(self, server_id: int, message: str) -> None:
+    def send_to_server(self, server_id: int, message: str) -> bool:
         """
         Sends a message to a server using the server id.
         """
 
         try:
             self._client_sockets[server_id].sendall(message.encode("utf-8"))
+            return False
         except Exception as exception:
             print(f"Socket error: {exception}")
+            return True
 
-    def receive_from_client(self, address: tuple[str, int]) -> str:
+    def receive_from_client_by_address(self, address: tuple[str, int]) -> str:
         """
         Receives a message from a client using the client address.
         """
 
         try:
             message = self._connected_clients[address].recv(1024).decode("utf-8")
+        except Exception as exception:
+            print(f"Socket error: {exception}")
+            message = ""
+
+        return message
+
+    def receive_from_client_by_id(self, client_id: int) -> str:
+        """
+        Receives a message from a client using the client id.
+        """
+
+        try:
+            message = self._connected_clients[self._connected_clients_addresses[client_id]].recv(1024).decode("utf-8")
         except Exception as exception:
             print(f"Socket error: {exception}")
             message = ""
