@@ -10,7 +10,7 @@ parser.add_argument("name", type=str, help="The node name")
 args = parser.parse_args()
 name = args.name
 
-JSON_NAME = "port_map2.json"
+JSON_NAME = "port_map.json"
 
 
 def read_file(file_name):
