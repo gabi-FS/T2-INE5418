@@ -2,7 +2,7 @@
 The Leader Election Protocol of IEEE 1394
 """
 
-
+from time import sleep
 from lib.election_node import ElectionNode, NodeAddress
 
 
@@ -19,12 +19,13 @@ class ElectionProtocolManager():
         neighbors_addresses = {id: NodeAddress(host, port) for id, (host, port) in neighbors.items()}
         self._election_node = ElectionNode(node_id, node_address, neighbors_addresses)
 
-    def start_server(self) -> None:
+    def start_server(self, startup_time: float) -> None:
         """
         Starts the server.
         """
 
         self._election_node.start_server()
+        sleep(startup_time)
 
     def wait_for_election(self) -> int:
         """
