@@ -28,7 +28,7 @@ class SocketManager():
         self._connected_clients_addresses = {}
         self._timeout = timeout
 
-        self._server_socket.setblocking(False)
+        # self._server_socket.setblocking(False)
 
         # Register the close_sockets method to be called when the program ends.
         # The sockets can also be closed at any moment.
@@ -80,6 +80,7 @@ class SocketManager():
 
         self._client_sockets[server_id] = socket(AF_INET, SOCK_STREAM)
         self._client_sockets[server_id].connect(address)
+        print("enviou conexao")
 
     def send_to_client(self, client_id: int, message: str) -> None:
         """

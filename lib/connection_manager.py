@@ -6,13 +6,16 @@ Module for the connection manager.
 from __future__ import annotations
 
 from threading import Thread
+from time import sleep
 from typing import TYPE_CHECKING
 
 from lib.socket_manager import SocketManager
 
 if TYPE_CHECKING:
-    from lib_refactor.election_node import NodeAddress
+    from lib.election_node import NodeAddress
 
+
+start_election_message = "start_election" #Mover daqui dps?
 
 class ConnectionManager():
 
@@ -39,6 +42,7 @@ class ConnectionManager():
         self._neighbors_addresses = neighbors_addresses
         self._server_finished = False
         self._server_thread = None
+        self._waiting_for_election = True
 
     @property
     def server_finished(self) -> bool:
@@ -63,46 +67,77 @@ class ConnectionManager():
 
         self._server_finished = True
 
-    def start(self, handle_message) -> None:
-        """
-        Initializes the node by starting the server.
-        """
-
-        self._server_thread = Thread(target=self.start_server, args=(handle_message,))
-        self._server_thread.start()
-
     def start_server(self, handle_message):
         """
         Starts the server and listens for incoming connections.
         """
 
-        self._socket_manager.bind_server(self._server_address.address())
+        self._socket_manager.bind_server(self._server_address.get_address())
         self._socket_manager.listen(10)
 
         print(f"Node {self._node_id} listening on {self._server_address}")
-
-        while not self._server_finished:
+        self._server_thread = Thread(target=self.wait_for_election, args=(handle_message,))
+        self._server_thread.start()
+        
+    def start_leader_election(self, handle_message):
+        # Dúvida: e se dois começarem ao mesmo tempo?
+        
+        self._waiting_for_election = False
+        not_connected_neighbors = list(self._neighbors_addresses.keys())
+        for neighbour_id in not_connected_neighbors:
+            address = self._neighbors_addresses[neighbour_id].get_address()
+            self._socket_manager.connect_to_server(neighbour_id, address)
+            self.send_message_to_server(neighbour_id, f"{start_election_message} {self._node_id}")
+            self._socket_manager.bind_client_id_to_address(neighbour_id,  address)
+            client_thread = Thread(target=self.handle_client_thread, args=(neighbour_id, handle_message))
+            client_thread.start()
+            
+        # Iniciar eleição aqui? Ou depois dos acks?
+        
+    def wait_for_election(self, handle_message):
+        print("Tá esperando eleição, vai entrar no accept")
+        while self._waiting_for_election:
+            not_connected_neighbours = list(self._neighbors_addresses.keys())
             client_address = self._socket_manager.accept()
-
+            
             if client_address:
                 print(f"Node {self._node_id} accepted connection from {client_address[0]}:{client_address[1]}")
 
-                message, node_id = self._socket_manager.receive_from_client(client_address).split()
+                message, client_node_id = self._socket_manager.receive_from_client(client_address).split()
 
-                node_id = int(node_id)
+                client_node_id = int(client_node_id)
 
-                print(f"Node {self._node_id} received message \"{message}\" from node {node_id}")
-
-                self._socket_manager.bind_client_id_to_address(node_id, client_address)
-
-                handle_message(node_id, message)
-
-                self._socket_manager.close_connection_with_client(node_id)
-
-                print(f"Connection closed with node {node_id}")
-
-        print("Closing server")
-        self._socket_manager.close_server_socket()
+                print(f"Node {self._node_id} received message \"{message}\" from node {client_node_id}")
+                                
+                if start_election_message == message:
+                    self._waiting_for_election = False
+                    
+                    not_connected_neighbours.remove(client_node_id)
+                    self._socket_manager.bind_client_id_to_address(client_node_id, client_address)
+                    
+                    # Fazer broadcast; -> Para os vizinhos! E criar conexões com cada um deles. Seria necessário esperar acks se já conecta antes de enviar msg?
+                    for neighbour_id in not_connected_neighbours:
+                        address = self._neighbors_addresses[neighbour_id].get_address()
+                        self._socket_manager.connect_to_server(neighbour_id, address)
+                        self.send_message_to_server(neighbour_id, f"{start_election_message} {self._node_id}")
+                        self._socket_manager.bind_client_id_to_address(neighbour_id, address)
+                        client_thread = Thread(target=self.handle_client_thread, args=(neighbour_id, handle_message))
+                        client_thread.start()
+                        
+                    
+                    client_thread = Thread(target=self.handle_client_thread, args=(client_node_id, handle_message))
+                    client_thread.start()
+                    
+        
+        # print("Closing server") não iria usar essa socket p mais nada, ent faz sentido já finalizar ela pra mim
+        # self._socket_manager.close_server_socket()
+        
+        
+    def handle_client_thread(self, client_id: int, handle_message) -> None:
+        while self._server_finished:
+            message, client_node_id = self._socket_manager.receive_from_client(self._neighbors_addresses[client_id].get_address())
+            handle_message(client_node_id, message)
+            
 
     def send_message_to_client(self, client_node_id: int, message: str) -> None:
         """
@@ -123,11 +158,7 @@ class ConnectionManager():
             neighbor_id (int): The ID of the neighbor node.
             message (str): The message to be sent.
         """
-
-        # TODO: Resolver problema de conexão com o servidor
-        # if not self._socket_manager.is_connected_to_server(server_id):
-        self._socket_manager.connect_to_server(server_id, self._neighbors_addresses[server_id].address())
-
+        # Sempre estaria conectado nesse ponto...
         try:
             self._socket_manager.send_to_server(server_id, message)
             print(f"Node {self._node_id} sent message to {server_id}: {message}")
@@ -154,9 +185,13 @@ class ConnectionManager():
 
         return message
 
+    # Pra que essa função é usada?
     def close_connection_with_server(self, server_id: int) -> None:
         """
         Closes a connection using the server id.
         """
 
         self._socket_manager.close_connection_with_server(server_id)
+        
+    def close_client_sockets(self) -> None:
+        self._socket_manager.close_client_sockets()
