@@ -97,9 +97,10 @@ class ElectionNode():
         self._leader_id = -1
         self._leader_mutex = Lock()
         self._leader_condition = Condition(self._leader_mutex)
+        self._is_waiting_for = (False, None)
 
         self._election_thread = None
-
+        
         print(f"Node {self._id} is leaf: {self._is_leaf}")
 
     # public lib methods
@@ -186,6 +187,7 @@ class ElectionNode():
                             print("vai esperar parent response condition")
                             with self._parent_response_mutex:
                                 self.send_parenting_request(self._possible_parents_ids[0])
+                                self._is_waiting_for = (True, self._possible_parents_ids[0])
                                 self._parent_response_condition.wait()
                             
                             print("passou do parent response condition")
@@ -200,14 +202,13 @@ class ElectionNode():
                             print("try again after some time")
                             sleep_time = randint(1, 3000)
                             
-                            # sleep(float(30 / sleep_time))
-                            sleep(30)
+                            sleep(float(30 / sleep_time))
 
 
         with self._leader_mutex:
             self._leader_condition.wait()
 
-    def handle_message(self, node_id: int, message: str) -> None:
+    def handle_message(self, node_id: int, message: str, node_message: int) -> None:
         """
         Handles the client connection and receives data from the client.
         """
@@ -221,8 +222,8 @@ class ElectionNode():
                 case MessageType.LEADER_ANNOUNCEMENT.value:
                     # TODO: enviar ack?
                     with self._leader_mutex:
-                        self._leader_id = node_id
-                        self.broadcast_leader_announcement(node_id)
+                        self._leader_id = node_message
+                        self.broadcast_leader_announcement(node_message)
                         self._leader_condition.notify()
                         self._connection_manager.finish_server()  # Vai fazer não receber mais mensagens.
                 case MessageType.PARENT_ACK_RESPONSE.value:
@@ -254,8 +255,10 @@ class ElectionNode():
         """
 
         print(f"Parenting request from {client_node_id}")
+        
+        concurrency = self._is_waiting_for[0] and client_node_id == self._is_waiting_for[1]
 
-        if client_node_id in self._possible_parents_ids and not self._is_leaf:
+        if not concurrency and client_node_id in self._possible_parents_ids and not self._is_leaf:
             print("Accept parenting request from", client_node_id)
 
             self.add_child(client_node_id)
@@ -272,8 +275,11 @@ class ElectionNode():
                 self._connection_manager.send_message_to_client(client_node_id,
                                                             f"{MessageType.PARENT_ACK_RESPONSE.value} {str(self._id)}")
         else:
-            # TODO: E se eu recebi uma requisição de alguém que eu já tinha mandado?
-            # Analisar sobre isso. "Sending request to..."
+            if concurrency:
+                with self._parent_response_mutex:
+                    self._parent_response = False
+                    self._is_waiting_for = (False, None)
+                    self._parent_response_condition.notify()
 
             print("Reject parent request from", client_node_id)
 
@@ -288,9 +294,11 @@ class ElectionNode():
         """
 
         for child_id in self._children_ids:
-            self._connection_manager.send_message_to_server(child_id,
+            error = self._connection_manager.send_message_to_server(child_id,
                                                             f"{MessageType.LEADER_ANNOUNCEMENT.value} {str(leader_id)}")
-            # TODO: esperar ack?
+            if error:
+                self._connection_manager.send_message_to_client(child_id,
+                                                            f"{MessageType.LEADER_ANNOUNCEMENT.value} {str(leader_id)}")
 
     def send_parenting_request(self, parent_id: int) -> None:
         """

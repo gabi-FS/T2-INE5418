@@ -132,16 +132,24 @@ class ConnectionManager():
     def handle_client_thread(self, client_id: int, handle_message) -> None:
         print(f"Node {self._node_id} handling client thread {client_id}, server {self._server_finished}")
         while not self._server_finished:
-            print(f"Node {self._node_id} waiting for message from {client_id}")
-            message, _ = self._socket_manager.receive_from_client_by_id(client_id).split()
-            handle_message(client_id, message)
+            try:
+                print(f"Node {self._node_id} waiting for message from {client_id}")
+                message, node_message = self._socket_manager.receive_from_client_by_id(client_id).split()
+                handle_message(client_id, message, int(node_message))
+            except OSError:
+                print(f"socket client {client_id} pode ter finalizado")
+                break
 
     def handle_server_thread(self, server_id: int, handle_message) -> None:
         print(f"Node {self._node_id} handling server thread {server_id}, server {self._server_finished}")
         while not self._server_finished:
-            print(f"Node {self._node_id} waiting for message from {server_id}")
-            message, _ = self._socket_manager.receive_from_server(server_id).split()
-            handle_message(server_id, message)
+            try:
+                print(f"Node {self._node_id} waiting for message from {server_id}")
+                message, node_message = self._socket_manager.receive_from_server(server_id).split()
+                handle_message(server_id, message, int(node_message))
+            except OSError:
+                print(f"socket client {server_id} pode ter finalizado")
+                break
 
     def send_message_to_client(self, client_node_id: int, message: str) -> None:
         """
