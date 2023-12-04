@@ -24,11 +24,6 @@
                 "id": 3,
                 "port": 8003,
                 "host": "localhost"
-            },
-            {
-                "id": 4,
-                "port": 8004,
-                "host": "localhost"
             }
         ]
     },
@@ -48,6 +43,11 @@
                 "id": 2,
                 "port": 8002,
                 "host": "localhost"
+            },
+            {
+                "id": 4,
+                "port": 8004,
+                "host": "localhost"
             }
         ]
     },
@@ -59,8 +59,65 @@
         },
         "neighbors": [
             {
-                "id": 2,
-                "port": 8002,
+                "id": 3,
+                "port": 8003,
+                "host": "localhost"
+            },
+            {
+                "id": 5,
+                "port": 8005,
+                "host": "localhost"
+            }
+        ]
+    },
+    "E": {
+        "id": 5,
+        "server": {
+            "port": 8005,
+            "host": "localhost"
+        },
+        "neighbors": [
+            {
+                "id": 4,
+                "port": 8004,
+                "host": "localhost"
+            },
+            {
+                "id": 6,
+                "port": 8006,
+                "host": "localhost"
+            },
+            {
+                "id": 7,
+                "port": 8007,
+                "host": "localhost"
+            }
+        ]
+    },
+    "F": {
+        "id": 6,
+        "server": {
+            "port": 8006,
+            "host": "localhost"
+        },
+        "neighbors": [
+            {
+                "id": 5,
+                "port": 8005,
+                "host": "localhost"
+            }
+        ]
+    },
+    "G": {
+        "id": 7,
+        "server": {
+            "port": 8007,
+            "host": "localhost"
+        },
+        "neighbors": [
+            {
+                "id": 5,
+                "port": 8005,
                 "host": "localhost"
             }
         ]
