@@ -165,10 +165,13 @@ class ElectionNode():
                 if self._parent_response:
                     self._done = True
             else:
+                print("esperando able to request?")
                 with self._able_to_request_parent_mutex:
+                    print("entrou no wait")
                     self._able_to_request_parent_condition.wait()
 
                     print("passou da espera do able to request")
+                    print("able to request parent:", self._able_to_request_parent)
                     if self._able_to_request_parent:
                         if len(self._possible_parents_ids) == 0:
                             print(self._id, "is leader")
@@ -177,11 +180,12 @@ class ElectionNode():
                             self._done = True
                             self._connection_manager.finish_server()
                         else:
+                            print("vai esperar parent response condition")
                             with self._parent_response_mutex:
                                 self.send_parenting_request(self._possible_parents_ids[0])
                                 self._parent_response_condition.wait()
                             
-                            print("able to request parent:", self._able_to_request_parent)
+                            print("passou do parent response condition")
 
                             if self._parent_response:
                                 self._able_to_request_parent = False
@@ -191,7 +195,8 @@ class ElectionNode():
                                 print("try again after some time")
                                 sleep_time = randint(1, 3000)
                                 sleep(float(30 / sleep_time))
-                                
+                    
+                    if not self._done:            
                         self._able_to_request_parent_condition.notify() # Liberar para o próximo loop
 
         with self._leader_mutex:
@@ -221,6 +226,10 @@ class ElectionNode():
                         self._parent_response_condition.notify()
                     print(f"Node {self._id} received parent ack response from {node_id}")
                 case MessageType.PARENT_REJECT_MESSAGE.value:
+                    with self._parent_response_mutex:
+                        self._parent_response = False
+                        self._parent_response_condition.notify()
+                case "error": # TODO: especificar msg de erro pra rejeição?
                     with self._parent_response_mutex:
                         self._parent_response = False
                         self._parent_response_condition.notify()
