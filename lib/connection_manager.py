@@ -115,7 +115,6 @@ class ConnectionManager():
                     not_connected_neighbors.remove(client_node_id)
                     self._socket_manager.bind_client_id_to_address(client_node_id, client_address)
 
-                    # Seria necessário esperar acks se já conecta antes de enviar msg?
                     self.broadcast_start_election(not_connected_neighbors, handle_message)
 
                     print(f"Inicializando thread do cliente {client_node_id}")
@@ -153,11 +152,10 @@ class ConnectionManager():
 
                 handle_message(connection_id, message, int(node_message))
             except OSError:
-                print(f"socket {connection_id} pode ter finalizado")
+                print(f"Socket {connection_id} pode ter finalizado")
                 break
-            except ValueError:
-                # Veio uma mensagem nula ou incorreta e daí deu valueError. melhor tratamento?
-                print(f"socket {connection_id} pode ter finalizado")
+            except ValueError:   
+                print(f"Socket {connection_id} pode ter finalizado")
                 break
 
     def send_message(self, node_id: int, message: str):
