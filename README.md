@@ -21,16 +21,15 @@ As funções da biblioteca são acessadas através da classe `ElectionProtocolMa
 2. Instanciar um objeto da classe `ElectionProtocolManager`, passando como parâmetros o ID do nó, seu endereço na rede (IP e porta) e seus vizinhos
     * O endereço do nó atual pode ser obtido com a função `get_node_election_address` do objeto `Network`
     * Os vizinhos podem ser obtidos com a função `get_election_neighbors` do objeto `Network`
-3. Chamar a função `start_server` a partir da instância de `ElectionProtocolManager` para 
+3. Chamar a função `start_server` a partir da instância de `ElectionProtocolManager` para preparar as conexões para a eleição
+4. A partir do objeto de `ElectionProtocolManager`:  
+    * Um dos nós deve chamar a função `start_election`
+    * Os outros nós devem chamar `wait_for_election`
 
-## Aplicaçãocia irá iniciar o processo de eleição ou apenas aguardá-lo.
-
----
+## Aplicação irá iniciar o processo de eleição ou apenas aguardá-lo.
 
 ### Aplicação de exemplo
 
 Na nossa aplicação é gerado um número aleatório com um sistema distribuído. O líder recebe os IDs dos outros nós de forma aleatória e no fim reúne os números na ordem recebida.
 
-**Para executar**:
-
-1. Execute o comando `python3 main.py <ID do nó>`. É necessário instanciar todos os nós da rede especificada no arquivo `config/network.json`. O nó que irá iniciar a eleição é o nó com o menor ID. É recomendado que os nós sejam inicializados em ordem decrescente no exemplo fornecido.
+**Para executar**: Execute o comando `python3 main.py <ID do nó>`. É necessário instanciar todos os nós da rede especificada no arquivo `config/network.json`. O nó que irá iniciar a eleição é o nó com o menor ID. É recomendado que os nós sejam inicializados em ordem decrescente no exemplo fornecido. No fim da execução um número aleatório é exibido no terminal do nó líder.
