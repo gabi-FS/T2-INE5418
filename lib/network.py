@@ -24,6 +24,13 @@ class Network():
 
         self._connections = {int(node_id): neighbors for node_id, neighbors in network["connections"].items()}
 
+    def get_node_count(self) -> int:
+        """
+        Returns the number of nodes.
+        """
+
+        return len(self._nodes)
+
     def get_node_election_address(self, node_id: int) -> tuple[str, int]:
         """
         Returns the address of a node.

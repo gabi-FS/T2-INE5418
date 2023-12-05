@@ -34,9 +34,9 @@ class ElectionProtocolManager():
 
         return self._election_node.wait_for_election()
 
-    def start_election(self) -> None:
+    def start_election(self) -> int:
         """
         Starts an election.
         """
 
-        self._election_node.start_the_election()
+        return self._election_node.start_the_election()
