@@ -3,6 +3,7 @@ The Leader Election Protocol of IEEE 1394
 """
 
 from time import sleep
+
 from lib.election_node import ElectionNode, NodeAddress
 
 
@@ -21,7 +22,7 @@ class ElectionProtocolManager():
 
     def start_server(self, startup_time: float) -> None:
         """
-        Starts the server.
+        Starts the node server and start the accept of other requests in another thread.
         """
 
         self._election_node.start_server()
@@ -29,14 +30,17 @@ class ElectionProtocolManager():
 
     def wait_for_election(self) -> int:
         """
-        Waits for an election.
+        Block the process until the leader election ends, returning it's result.
         """
 
         return self._election_node.wait_for_election()
 
-    def start_election(self) -> int:
+    def start_election(self, block_until_result=True) -> int:
         """
-        Starts an election.
+        Starts the election process, broadcasting to other nodes.
+
+        Args:
+            block_until_result (bool): if True, will wait for the result of the election and return it. If false, returns -1, and the result can be obtained from the ElectionNode class in nondeterministic time.
         """
 
-        return self._election_node.start_the_election()
+        return self._election_node.start_the_election(block_until_result)
