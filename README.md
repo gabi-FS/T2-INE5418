@@ -26,10 +26,11 @@ As funções da biblioteca são acessadas através da classe `ElectionProtocolMa
     * Um dos nós deve chamar a função `start_election`
     * Os outros nós devem chamar `wait_for_election`
 
-## Aplicação irá iniciar o processo de eleição ou apenas aguardá-lo.
+## Aplicação
 
 ### Aplicação de exemplo
 
-Na nossa aplicação é gerado um número aleatório com um sistema distribuído. O líder recebe os IDs dos outros nós de forma aleatória e no fim reúne os números na ordem recebida.
+A nossa aplicação irá iniciar o processo de eleição ou apenas aguardá-lo.
+Após, é gerado um número aleatório com um sistema distribuído. O líder recebe os IDs dos outros nós de forma aleatória e no fim reúne os números na ordem recebida.
 
 **Para executar**: Execute o comando `python3 main.py <ID do nó>`. É necessário instanciar todos os nós da rede especificada no arquivo `config/network.json`. O nó que irá iniciar a eleição é o nó com o menor ID. É recomendado que os nós sejam inicializados em ordem decrescente no exemplo fornecido. No fim da execução um número aleatório é exibido no terminal do nó líder.
